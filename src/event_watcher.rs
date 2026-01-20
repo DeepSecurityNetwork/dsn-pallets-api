@@ -1,4 +1,4 @@
-//! EventWatcher for Bool node witch BoolSubClient.
+//! EventWatcher for DeepSafe node witch DeepSafeSubClient.
 use crate::{NodeClient as SubClient, NodeConfig};
 use node_primitives::Hash;
 use std::{cmp::Ordering, collections::HashMap};

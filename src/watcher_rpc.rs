@@ -15,15 +15,15 @@ use crate::{
 use codec::Encode;
 
 use crate::NodeClient;
-use precompile_utils::solidity::codec::Writer as EvmDataWriter;
+use precompile_utils::{prelude::UnboundedBytes, solidity::codec::Writer as EvmDataWriter};
 use sp_core::{H160, H256};
 
-/// keccak_256("reportResult(bytes[],bytes[],uint256,uint256,bytes32,bytes[])".as_bytes())[..4]
-pub const REPORT_RESULT_SELECTOR: [u8; 4] = [81, 88, 250, 234];
-/// keccak_256("submitTransaction(uint256,uint256,bytes[],uint256,bytes[],bytes[],bytes[],uint256)".as_bytes())[..4]
-pub const SUBMIT_TRANSACTION_SELECTOR: [u8; 4] = [71, 68, 182, 32];
+/// keccak_256("submitTxSignResult(bytes[],bytes[],uint256,uint256,bytes32,bytes[])".as_bytes())[..4]
+pub const REPORT_RESULT_SELECTOR: [u8; 4] = [118, 72, 134, 178];
+/// keccak_256("importNewTx(uint256,uint256,bytes[],uint256,bytes[],bytes[],bytes[],uint256)".as_bytes())[..4]
+pub const SUBMIT_TRANSACTION_SELECTOR: [u8; 4] = [58, 164, 61, 2];
 /// keccak_256("joinOrExitServiceUnsigned(bytes[],uint256,bytes[],bytes[])".as_bytes())[..4]
-pub const JOIN_OR_EXIT_SERVICE_UNSIGNED_SELECTOR: [u8; 4] = [167, 247, 205, 137];
+pub const JOIN_OR_EXIT_SERVICE_UNSIGNED_SELECTOR: [u8; 4] = [99, 254, 70, 76];
 pub async fn call_register_v2(
     sub_client: &NodeClient,
     config_owner: &str,
@@ -125,12 +125,12 @@ pub async fn report_result_by_evm(
 ) -> Result<Vec<u8>, String> {
     // build writer with 'reportResult' select
     let writer = EvmDataWriter::new_with_selector(u32::from_be_bytes(REPORT_RESULT_SELECTOR))
-        .write(pk)
-        .write(sig)
+        .write(UnboundedBytes::from(pk))
+        .write(UnboundedBytes::from(sig))
         .write(cid)
         .write(fork_id)
         .write(hash)
-        .write(signature);
+        .write(UnboundedBytes::from(signature));
 
     let input = writer.build();
 
@@ -197,10 +197,10 @@ pub async fn join_or_exit_service_unsigned_by_evm(
     let writer = EvmDataWriter::new_with_selector(u32::from_be_bytes(
         JOIN_OR_EXIT_SERVICE_UNSIGNED_SELECTOR,
     ))
-    .write(id)
+    .write(UnboundedBytes::from(id))
     .write(purpose as u8)
-    .write(msg)
-    .write(signature);
+    .write(UnboundedBytes::from(msg))
+    .write(UnboundedBytes::from(signature));
 
     let input = writer.build();
 
