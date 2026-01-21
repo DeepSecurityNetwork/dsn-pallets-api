@@ -3,7 +3,7 @@ use crate::deepsafe::runtime_types::ethereum::transaction::{
 };
 use anyhow::Result;
 use codec::{Compact, Encode};
-use def_node_primitives::AccountId20;
+use dsn_node_primitives::AccountId20;
 use sp_core::H256 as Hash;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -13,20 +13,20 @@ use subxt::config::{
     substrate::{BlakeTwo256, SubstrateHeader},
 };
 use subxt::{
-    OnlineClient, Config, tx::{DeepSafeSigner, Payload as TxPayload, TxProgress, SecretKey, Signer, SubmittableExtrinsic}, JsonRpseeError,
+    OnlineClient, Config, tx::{EcdsaSigner, Payload as TxPayload, TxProgress, SecretKey, Signer, SubmittableExtrinsic}, JsonRpseeError,
     Error, error::RpcError, storage::{Address as StorageAddress}, ext::subxt_core::{utils::Yes, constants::address::Address as ConstantAddress},
     lightclient::{ChainConfig, LightClient, JsonRpcError}, config::polkadot::PolkadotExtrinsicParamsBuilder,
 };
 use tokio::sync::RwLock;
 
 #[derive(Clone, Debug)]
-pub enum DeepSafeConfig {}
+pub enum NodeConfig {}
 
-impl Config for DeepSafeConfig {
+impl Config for NodeConfig {
     type Hash = Hash;
-    type AccountId = def_node_primitives::AccountId20;
-    type Address = sp_runtime::MultiAddress<def_node_primitives::AccountId20, ()>;
-    type Signature = def_node_primitives::EthereumSignature;
+    type AccountId = dsn_node_primitives::AccountId20;
+    type Address = sp_runtime::MultiAddress<dsn_node_primitives::AccountId20, ()>;
+    type Signature = dsn_node_primitives::EthereumSignature;
     type Hasher = BlakeTwo256;
     type Header = SubstrateHeader<u32, BlakeTwo256>;
     type ExtrinsicParams = PolkadotExtrinsicParams<Self>;
@@ -49,21 +49,21 @@ pub struct SubClient<C: Config, P: Signer<C> + Clone> {
     pub enable_runtime_version_check: bool,
 }
 
-impl SubClient<DeepSafeConfig, DeepSafeSigner<DeepSafeConfig>> {
+impl SubClient<NodeConfig, EcdsaSigner<NodeConfig>> {
     pub async fn new(
         url: &str,
         id: &str,
         password_override: Option<String>,
         warn_time: Option<u128>,
         cache_size_for_call: Option<u32>,
-    ) -> SubClient<DeepSafeConfig, DeepSafeSigner<DeepSafeConfig>> {
+    ) -> SubClient<NodeConfig, EcdsaSigner<NodeConfig>> {
         let password_override = password_override.unwrap_or("".to_string());
         let phase = id.to_owned() + &password_override;
         let seed = sp_core::keccak_256(phase.as_bytes());
-        let signer = DeepSafeSigner::new(
+        let signer = EcdsaSigner::new(
             SecretKey::parse(&seed).expect("phase sk from seed should successfully"),
         );
-        let subxt_client = OnlineClient::<DeepSafeConfig>::from_url(url).await.unwrap();
+        let subxt_client = OnlineClient::<NodeConfig>::from_url(url).await.unwrap();
         let chain_nonce = subxt_client
             .tx()
             .account_nonce(signer.account_id())
@@ -87,16 +87,16 @@ impl SubClient<DeepSafeConfig, DeepSafeSigner<DeepSafeConfig>> {
         sk: Option<String>,
         warn_time: Option<u128>,
         cache_size_for_call: Option<u32>,
-    ) -> Result<SubClient<DeepSafeConfig, DeepSafeSigner<DeepSafeConfig>>, String> {
+    ) -> Result<SubClient<NodeConfig, EcdsaSigner<NodeConfig>>, String> {
         let mut chain_nonce = 0;
-        let subxt_client = OnlineClient::<DeepSafeConfig>::from_insecure_url(&url)
+        let subxt_client = OnlineClient::<NodeConfig>::from_insecure_url(&url)
             .await
             .map_err(|e| e.to_string())?;
         let signer = if let Some(sk) = sk {
             let sk =
                 hex::decode(sk.strip_prefix("0x").unwrap_or(&sk)).map_err(|e| e.to_string())?;
             let signer =
-                DeepSafeSigner::new(SecretKey::parse_slice(&sk).map_err(|e| e.to_string())?);
+                EcdsaSigner::new(SecretKey::parse_slice(&sk).map_err(|e| e.to_string())?);
             chain_nonce = subxt_client
                 .tx()
                 .account_nonce(signer.account_id())
@@ -119,7 +119,7 @@ impl SubClient<DeepSafeConfig, DeepSafeSigner<DeepSafeConfig>> {
         })
     }
 
-    pub async fn new_light_client(chain_spec: Option<String>, node_ws_url: Option<String>, sk: Option<String>, warn_time: Option<u128>, cache_size_for_call: Option<u32>) -> Result<SubClient<DeepSafeConfig, DeepSafeSigner<DeepSafeConfig>>, String> {
+    pub async fn new_light_client(chain_spec: Option<String>, node_ws_url: Option<String>, sk: Option<String>, warn_time: Option<u128>, cache_size_for_call: Option<u32>) -> Result<SubClient<NodeConfig, EcdsaSigner<NodeConfig>>, String> {
         use subxt::utils::fetch_chainspec_from_rpc_node;
         let config_str = if let Some(spec) = &chain_spec {
             spec.to_string()
@@ -129,10 +129,10 @@ impl SubClient<DeepSafeConfig, DeepSafeSigner<DeepSafeConfig>> {
         };
         let chain_config = ChainConfig::chain_spec(config_str);
         let (_light_client, chain_rpc) = LightClient::relay_chain(chain_config).map_err(|e| e.to_string())?;
-        let subxt_client = OnlineClient::<DeepSafeConfig>::from_rpc_client(chain_rpc).await.map_err(|e| e.to_string())?;
+        let subxt_client = OnlineClient::<NodeConfig>::from_rpc_client(chain_rpc).await.map_err(|e| e.to_string())?;
         let signer = if let Some(sk) = sk {
             let sk = hex::decode(sk.strip_prefix("0x").unwrap_or(&sk)).map_err(|e| e.to_string()).map_err(|e| e.to_string())?;
-            let signer = DeepSafeSigner::new(SecretKey::parse_slice(&sk).map_err(|e| e.to_string())?);
+            let signer = EcdsaSigner::new(SecretKey::parse_slice(&sk).map_err(|e| e.to_string())?);
             Some(signer)
         } else {
             None
@@ -210,7 +210,7 @@ impl SubClient<DeepSafeConfig, DeepSafeSigner<DeepSafeConfig>> {
                 *inner_nonce
             }
         };
-        let tx: subxt::tx::SubmittableExtrinsic<DeepSafeConfig, OnlineClient<DeepSafeConfig>> = client.tx().create_signed(
+        let tx: subxt::tx::SubmittableExtrinsic<NodeConfig, OnlineClient<NodeConfig>> = client.tx().create_signed(
                 &call,
                 signer,
                 PolkadotExtrinsicParamsBuilder::new().nonce(target_nonce).build(),
@@ -472,7 +472,7 @@ impl SubClient<DeepSafeConfig, DeepSafeSigner<DeepSafeConfig>> {
     pub async fn submit_extrinsic_without_signer_and_watch<Call: TxPayload>(
         &self,
         call: Call,
-    ) -> Result<TxProgress<DeepSafeConfig, OnlineClient<DeepSafeConfig>>, Error> {
+    ) -> Result<TxProgress<NodeConfig, OnlineClient<NodeConfig>>, Error> {
         let timer = Instant::now();
         let client = self.client.read().await;
         let tx = client.tx().create_unsigned(&call)?;
@@ -829,7 +829,7 @@ async fn test_nonce_roll_back() {
     let url = "ws://127.0.0.1:9933".to_string();
     let sk_bytes = hex::decode("").unwrap();
     let sk = SecretKey::parse_slice(&sk_bytes).unwrap();
-    let signer = DeepSafeSigner::new(sk);
+    let signer = EcdsaSigner::new(sk);
     let client = DeepSafeSubClient::new_from_signer(&url, Some(signer), None, Some(20))
         .await
         .unwrap();
@@ -858,7 +858,7 @@ async fn test_submit_tx_by_call_bytes() {
     let sk_bytes =
         hex::decode("5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133").unwrap(); // alice
     let sk = SecretKey::parse_slice(&sk_bytes).unwrap();
-    let signer = DeepSafeSigner::new(sk);
+    let signer = EcdsaSigner::new(sk);
     let client = DeepSafeSubClient::new_from_signer(&url, Some(signer), None, Some(20))
         .await
         .unwrap();

@@ -7,12 +7,12 @@ pub mod submit;
 pub mod types;
 pub mod watcher_rpc;
 
-pub use crate::client::DeepSafeConfig;
-pub use def_node_primitives;
-use def_node_primitives::CustomError;
+pub use crate::client::NodeConfig;
+pub use dsn_node_primitives;
+use dsn_node_primitives::CustomError;
 pub use subxt::constants::Address;
 pub use subxt::events::StaticEvent;
-pub use subxt::tx::{DeepSafeSigner, SecretKey};
+pub use subxt::tx::{EcdsaSigner, SecretKey};
 pub use subxt::{error::RpcError, events::EventDetails, subxt, Error, JsonRpseeError, config::polkadot::PolkadotExtrinsicParamsBuilder};
 pub use subxt::ext::subxt_core::utils::AccountId20;
 
@@ -23,7 +23,7 @@ pub use subxt::ext::subxt_core::utils::AccountId20;
 )]
 pub mod deepsafe {}
 
-pub type DeepSafeSubClient = client::SubClient<DeepSafeConfig, DeepSafeSigner<DeepSafeConfig>>;
+pub type DeepSafeSubClient = client::SubClient<NodeConfig, EcdsaSigner<NodeConfig>>;
 
 #[derive(Debug, PartialEq)]
 pub enum CommitteeEvent {

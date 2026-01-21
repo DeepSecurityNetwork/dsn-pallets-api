@@ -1,6 +1,6 @@
 //! EventWatcher for DeepSafe node witch DeepSafeSubClient.
-use crate::{DeepSafeConfig, DeepSafeSubClient as SubClient};
-use def_node_primitives::Hash;
+use crate::{NodeConfig, DeepSafeSubClient as SubClient};
+use dsn_node_primitives::Hash;
 use std::{cmp::Ordering, collections::HashMap};
 use subxt::events::EventDetails;
 use subxt::blocks::BlockRef;
@@ -28,7 +28,7 @@ pub enum EventFilter {
 pub struct EventWatcher {
     log_target: String,
     client: SubClient,
-    handler: Sender<(WatcherMode, u32, Hash, Vec<EventDetails<DeepSafeConfig>>)>,
+    handler: Sender<(WatcherMode, u32, Hash, Vec<EventDetails<NodeConfig>>)>,
     pub filter: Option<EventFilter>,
     pub latest: u32,
     pub finalized: u32,
@@ -38,7 +38,7 @@ impl EventWatcher {
     pub fn new(
         log_target: &str,
         client: SubClient,
-        handler: Sender<(WatcherMode, u32, Hash, Vec<EventDetails<DeepSafeConfig>>)>,
+        handler: Sender<(WatcherMode, u32, Hash, Vec<EventDetails<NodeConfig>>)>,
     ) -> Self {
         EventWatcher {
             log_target: log_target.to_string(),
@@ -88,9 +88,9 @@ impl EventWatcher {
         }
         #[cfg(feature = "telemetry")]
         {
-            def_telemetry_client::set_best_block_number(self.latest);
-            def_telemetry_client::set_finalized_block_number(self.finalized);
-            def_telemetry_client::set_handled_block_number(self.finalized);
+            dsn_telemetry_client::set_best_block_number(self.latest);
+            dsn_telemetry_client::set_finalized_block_number(self.finalized);
+            dsn_telemetry_client::set_handled_block_number(self.finalized);
         }
     }
 
@@ -164,8 +164,8 @@ impl EventWatcher {
 
                 #[cfg(feature = "telemetry")]
                 {
-                    def_telemetry_client::set_best_block_number(self.latest);
-                    def_telemetry_client::set_finalized_block_number(self.finalized);
+                    dsn_telemetry_client::set_best_block_number(self.latest);
+                    dsn_telemetry_client::set_finalized_block_number(self.finalized);
                 }
 
                 tokio::time::sleep(std::time::Duration::from_secs(3)).await;
@@ -247,7 +247,7 @@ pub async fn get_events(
     client: &SubClient,
     block: u32,
     pallets: Option<Vec<&str>>,
-) -> anyhow::Result<(Hash, Vec<EventDetails<DeepSafeConfig>>)> {
+) -> anyhow::Result<(Hash, Vec<EventDetails<NodeConfig>>)> {
     let hash = block_hash(
         client,
         block,
@@ -278,7 +278,7 @@ pub async fn get_events(
 pub async fn get_block_hash(
     client: SubClient,
     mode: WatcherMode,
-) -> Result<<DeepSafeConfig as Config>::Hash, String> {
+) -> Result<<NodeConfig as Config>::Hash, String> {
     let guard_client = client.client.read().await;
     match mode {
         WatcherMode::Latest => match latest_block_hash(&client, None).await {
@@ -315,7 +315,7 @@ pub async fn get_block_hash(
 
 pub async fn get_block_number(
     client: SubClient,
-    hash: Option<<DeepSafeConfig as Config>::Hash>,
+    hash: Option<<NodeConfig as Config>::Hash>,
 ) -> Result<u32, String> {
     let guard_client = client.client.read().await;
     let block_api = guard_client.blocks();
